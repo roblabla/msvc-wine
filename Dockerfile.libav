@@ -1,0 +1,21 @@
+ARG BASE=msvc-wine
+FROM $BASE
+
+RUN apt-get update && \
+    apt-get install -y git cpp make
+
+WORKDIR /opt
+RUN git clone git://git.libav.org/gas-preprocessor
+
+ENV PATH=/opt/gas-preprocessor:$PATH
+
+WORKDIR /build
+RUN git clone git://git.libav.org/libav
+
+RUN wineserver -p && \
+    wine wineboot && \
+    mkdir libav-msvc-arm64 && \
+    cd libav-msvc-arm64 && \
+    export PATH=/opt/msvc/bin/arm64:$PATH && \
+    ../libav/configure --arch=arm64 --target-os=win32 --toolchain=msvc --enable-cross-compile --disable-debug --disable-doc && \
+    make -j$(nproc)
