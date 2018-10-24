@@ -1,0 +1,83 @@
+From 38ea818efaadcbfdd8107c4127412d49d12a140b Mon Sep 17 00:00:00 2001
+From: Martin Storsjo <martin@martin.st>
+Date: Fri, 19 Oct 2018 23:59:07 +0300
+Subject: [PATCH 2/8] Use cl for preprocessing when using armasm
+
+When invoking gas-preprocessor to preprocess only to get the dependency
+list, we still need to use cpp, as cl doesn't support the -M options.
+---
+ gas-preprocessor.pl | 30 ++++++++++++++++++------------
+ 1 file changed, 18 insertions(+), 12 deletions(-)
+
+diff --git a/gas-preprocessor.pl b/gas-preprocessor.pl
+index e9baeba..69f6f6d 100755
+--- a/gas-preprocessor.pl
++++ b/gas-preprocessor.pl
+@@ -103,14 +103,7 @@ if (grep /\.c$/, @gcc_cmd) {
+ if ($as_type eq "armasm") {
+ 
+     $preprocess_c_cmd[0] = "cpp";
+-    push(@preprocess_c_cmd, "-undef");
+-    # Normally a preprocessor for windows would predefine _WIN32,
+-    # but we're using any generic system-agnostic preprocessor "cpp"
+-    # with -undef (to avoid getting predefined variables from the host
+-    # system in cross compilation cases), so manually define it here.
+-    push(@preprocess_c_cmd, "-D_WIN32");
+-
+-    @preprocess_c_cmd = grep ! /^-nologo$/, @preprocess_c_cmd;
++
+     # Remove -ignore XX parameter pairs from preprocess_c_cmd
+     my $index = 1;
+     while ($index < $#preprocess_c_cmd) {
+@@ -121,10 +114,23 @@ if ($as_type eq "armasm") {
+         $index++;
+     }
+     if (grep /^-MM$/, @preprocess_c_cmd) {
++        push(@preprocess_c_cmd, "-D_WIN32");
++        # Normally a preprocessor for windows would predefine _WIN32,
++        # but we're using any generic system-agnostic preprocessor "cpp"
++        # with -undef (to avoid getting predefined variables from the host
++        # system in cross compilation cases), so manually define it here.
++        # We only use this generic preprocessor for generating dependencies,
++        # if the build system runs preprocessing with -M/-MM without -MF.
++        push(@preprocess_c_cmd, "-undef");
++        @preprocess_c_cmd = grep ! /^-nologo$/, @preprocess_c_cmd;
+         print STDERR join(" ", @preprocess_c_cmd)."\n" if $verbose;
+         system(@preprocess_c_cmd) == 0 or die "Error running preprocessor";
+         exit 0;
+     }
++
++    # If not preprocessing for getting a dependency list, use cl.exe
++    # instead.
++    $preprocess_c_cmd[0] = "cl";
+ }
+ 
+ # if compiling, avoid creating an output file named '-.o'
+@@ -139,13 +145,12 @@ if ((grep /^-c$/, @gcc_cmd) && !(grep /^-o/, @gcc_cmd)) {
+         }
+     }
+ }
+-# replace only the '-o' argument with '-', avoids rewriting the make dependency
+-# target specified with -MT to '-'
++# Remove the -o argument; if omitted, we by default preprocess to stdout.
+ my $index = 1;
+ while ($index < $#preprocess_c_cmd) {
+     if ($preprocess_c_cmd[$index] eq "-o") {
+-        $index++;
+-        $preprocess_c_cmd[$index] = "-";
++        splice(@preprocess_c_cmd, $index, 2);
++        last;
+     }
+     $index++;
+ }
+@@ -166,6 +171,7 @@ if ($as_type ne "armasm") {
+     @preprocess_c_cmd = grep ! /^-oldit/, @preprocess_c_cmd;
+     @preprocess_c_cmd = grep ! /^-FS/, @preprocess_c_cmd;
+     @preprocess_c_cmd = grep ! /^-w/, @preprocess_c_cmd;
++    @preprocess_c_cmd = grep ! /^-M/, @preprocess_c_cmd;
+ 
+     @gcc_cmd = grep ! /^-G/, @gcc_cmd;
+     @gcc_cmd = grep ! /^-W/, @gcc_cmd;
+-- 
+2.17.1
+

@@ -1,0 +1,36 @@
+From 9d6bbb0bf374437742e326100d1a9f56a431db6d Mon Sep 17 00:00:00 2001
+From: Martin Storsjo <martin@martin.st>
+Date: Mon, 22 Oct 2018 23:41:05 +0300
+Subject: [PATCH 6/8] Use system instead of exec
+
+On windows, exec doesn't replace the current process but spawns a
+new one, and doesn't wait for the child process to exit.
+---
+ gas-preprocessor.pl | 4 ++--
+ 1 file changed, 2 insertions(+), 2 deletions(-)
+
+diff --git a/gas-preprocessor.pl b/gas-preprocessor.pl
+index a375848..8e7d877 100755
+--- a/gas-preprocessor.pl
++++ b/gas-preprocessor.pl
+@@ -89,7 +89,7 @@ if (grep /\.c$/, @gcc_cmd) {
+     if ($gcc_cmd[0] =~ /cl$/) {
+         # MSVC compiler, just pass the command through.
+         print STDERR join(" ", @gcc_cmd)."\n" if $verbose;
+-        exec(@gcc_cmd);
++        exit system(@gcc_cmd) >> 8;
+     }
+     # C file (inline asm?) - compile
+     @preprocess_c_cmd = (@gcc_cmd, "-S");
+@@ -101,7 +101,7 @@ if (grep /\.c$/, @gcc_cmd) {
+     # uninteded results but it doesn't matter much if gas-preprocessor or
+     # the compiler fails.
+     print STDERR join(" ", @gcc_cmd)."\n" if $verbose;
+-    exec(@gcc_cmd);
++    exit system(@gcc_cmd) >> 8;
+ } else {
+     die "Unrecognized input filetype";
+ }
+-- 
+2.17.1
+

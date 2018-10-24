@@ -1,0 +1,24 @@
+From 649a9f97f3a7bbcecaf5ac00530c850466d44726 Mon Sep 17 00:00:00 2001
+From: =?UTF-8?q?Martin=20Storsj=C3=B6?= <martin@martin.st>
+Date: Mon, 22 Oct 2018 16:15:39 +0300
+Subject: [PATCH] Allow compiling .S assembly files with MSVC
+
+---
+ mesonbuild/compilers/c.py | 1 +
+ 1 file changed, 1 insertion(+)
+
+diff --git a/mesonbuild/compilers/c.py b/mesonbuild/compilers/c.py
+index c51a6ab..0305966 100644
+--- a/mesonbuild/compilers/c.py
++++ b/mesonbuild/compilers/c.py
+@@ -1275,6 +1275,7 @@ class VisualStudioCCompiler(CCompiler):
+                           '3': ['/W4']}
+         self.base_options = ['b_pch', 'b_ndebug', 'b_vscrt'] # FIXME add lto, pgo and the like
+         self.is_64 = is_64
++        self.can_compile_suffixes.add('s')
+ 
+     # Override CCompiler.get_always_args
+     def get_always_args(self):
+-- 
+2.7.4
+

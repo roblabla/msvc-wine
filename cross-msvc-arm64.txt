@@ -1,0 +1,11 @@
+[binaries]
+c = 'gaspp-cl-arm64'
+cpp = 'cl'
+ar = 'lib'
+windres = 'rc'
+
+[host_machine]
+system = 'windows'
+cpu_family = 'aarch64'
+cpu = 'aarch64'
+endian = 'little'

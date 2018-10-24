@@ -1,0 +1,31 @@
+From 1cb657863ea3fa71a11d0a62ac1836697f1afa2b Mon Sep 17 00:00:00 2001
+From: Martin Storsjo <martin@martin.st>
+Date: Mon, 22 Oct 2018 23:41:51 +0300
+Subject: [PATCH 8/8] Add bat wrappers
+
+---
+ gaspp-cl-arm.bat   | 2 ++
+ gaspp-cl-arm64.bat | 2 ++
+ 2 files changed, 4 insertions(+)
+ create mode 100644 gaspp-cl-arm.bat
+ create mode 100644 gaspp-cl-arm64.bat
+
+diff --git a/gaspp-cl-arm.bat b/gaspp-cl-arm.bat
+new file mode 100644
+index 0000000..c60dbbf
+--- /dev/null
++++ b/gaspp-cl-arm.bat
+@@ -0,0 +1,2 @@
++@echo off
++gas-preprocessor.pl -arch arm -as-type armasm -- cl %*
+diff --git a/gaspp-cl-arm64.bat b/gaspp-cl-arm64.bat
+new file mode 100644
+index 0000000..abe9c97
+--- /dev/null
++++ b/gaspp-cl-arm64.bat
+@@ -0,0 +1,2 @@
++@echo off
++gas-preprocessor.pl -arch aarch64 -as-type armasm -- cl %*
+-- 
+2.17.1
+

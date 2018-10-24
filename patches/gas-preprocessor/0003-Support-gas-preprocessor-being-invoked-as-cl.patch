@@ -1,0 +1,148 @@
+From faeec2fab283b0a98585c996bf13e91d89d37bc7 Mon Sep 17 00:00:00 2001
+From: Martin Storsjo <martin@martin.st>
+Date: Mon, 22 Oct 2018 14:37:10 +0300
+Subject: [PATCH 3/8] Support gas-preprocessor being invoked as "cl"
+
+Support the cl style options. When invoked for plain C files, don't
+try to assemble to stdout, but just invoke the compiler as usual.
+---
+ gas-preprocessor.pl | 86 ++++++++++++++++++++++++++++-----------------
+ 1 file changed, 54 insertions(+), 32 deletions(-)
+
+diff --git a/gas-preprocessor.pl b/gas-preprocessor.pl
+index 69f6f6d..da22968 100755
+--- a/gas-preprocessor.pl
++++ b/gas-preprocessor.pl
+@@ -86,12 +86,17 @@ while (@ARGV) {
+ }
+ 
+ if (grep /\.c$/, @gcc_cmd) {
++    if ($gcc_cmd[0] =~ /cl$/) {
++        # MSVC compiler, just pass the command through.
++        print STDERR join(" ", @gcc_cmd)."\n" if $verbose;
++        exec(@gcc_cmd);
++    }
+     # C file (inline asm?) - compile
+     @preprocess_c_cmd = (@gcc_cmd, "-S");
+ } elsif (grep /\.[sS]$/, @gcc_cmd) {
+     # asm file, just do C preprocessor
+     @preprocess_c_cmd = (@gcc_cmd, "-E");
+-} elsif (grep /-(v|h|-version|dumpversion)/, @gcc_cmd) {
++} elsif (grep /-(v|h|-version|dumpversion)|[\/-]?/, @gcc_cmd) {
+     # pass -v/--version along, used during probing. Matching '-v' might have
+     # uninteded results but it doesn't matter much if gas-preprocessor or
+     # the compiler fails.
+@@ -130,11 +135,21 @@ if ($as_type eq "armasm") {
+ 
+     # If not preprocessing for getting a dependency list, use cl.exe
+     # instead.
+-    $preprocess_c_cmd[0] = "cl";
++
++    if ($gcc_cmd[0] =~ /cl$/) {
++        $preprocess_c_cmd[0] = $gcc_cmd[0];
++        if ($arch eq "aarch64") {
++            $gcc_cmd[0] = "armasm64";
++        } else {
++            $gcc_cmd[0] = "armasm";
++        }
++    } else {
++        $preprocess_c_cmd[0] = "cl";
++    }
+ }
+ 
+ # if compiling, avoid creating an output file named '-.o'
+-if ((grep /^-c$/, @gcc_cmd) && !(grep /^-o/, @gcc_cmd)) {
++if ((grep /^[-\/]c$/, @gcc_cmd) && !(grep /^-o/, @gcc_cmd) && !(grep /^[-\/Fo]/, @gcc_cmd)) {
+     foreach my $i (@gcc_cmd) {
+         if ($i =~ /\.[csS]$/) {
+             my $outputfile = $i;
+@@ -148,9 +163,12 @@ if ((grep /^-c$/, @gcc_cmd) && !(grep /^-o/, @gcc_cmd)) {
+ # Remove the -o argument; if omitted, we by default preprocess to stdout.
+ my $index = 1;
+ while ($index < $#preprocess_c_cmd) {
+-    if ($preprocess_c_cmd[$index] eq "-o") {
++    if ($preprocess_c_cmd[$index] eq "-o" or $preprocess_c_cmd[$index] =~ /^[-\/]Fo$/) {
+         splice(@preprocess_c_cmd, $index, 2);
+         last;
++    } elsif ($preprocess_c_cmd[$index] =~ /^[-\/]Fo/) {
++        splice(@preprocess_c_cmd, $index, 1);
++        last;
+     }
+     $index++;
+ }
+@@ -159,40 +177,44 @@ my $tempfile;
+ if ($as_type ne "armasm") {
+     @gcc_cmd = map { /\.[csS]$/ ? qw(-x assembler -) : $_ } @gcc_cmd;
+ } else {
+-    @preprocess_c_cmd = grep ! /^-c$/, @preprocess_c_cmd;
+-    @preprocess_c_cmd = grep ! /^-m/, @preprocess_c_cmd;
+-
+-    @preprocess_c_cmd = grep ! /^-G/, @preprocess_c_cmd;
+-    @preprocess_c_cmd = grep ! /^-W/, @preprocess_c_cmd;
+-    @preprocess_c_cmd = grep ! /^-Z/, @preprocess_c_cmd;
+-    @preprocess_c_cmd = grep ! /^-fp/, @preprocess_c_cmd;
+-    @preprocess_c_cmd = grep ! /^-EHsc$/, @preprocess_c_cmd;
+-    @preprocess_c_cmd = grep ! /^-O/, @preprocess_c_cmd;
+-    @preprocess_c_cmd = grep ! /^-oldit/, @preprocess_c_cmd;
+-    @preprocess_c_cmd = grep ! /^-FS/, @preprocess_c_cmd;
+-    @preprocess_c_cmd = grep ! /^-w/, @preprocess_c_cmd;
+-    @preprocess_c_cmd = grep ! /^-M/, @preprocess_c_cmd;
+-
+-    @gcc_cmd = grep ! /^-G/, @gcc_cmd;
+-    @gcc_cmd = grep ! /^-W/, @gcc_cmd;
+-    @gcc_cmd = grep ! /^-Z/, @gcc_cmd;
+-    @gcc_cmd = grep ! /^-fp/, @gcc_cmd;
+-    @gcc_cmd = grep ! /^-EHsc$/, @gcc_cmd;
+-    @gcc_cmd = grep ! /^-O/, @gcc_cmd;
+-    @gcc_cmd = grep ! /^-FS/, @gcc_cmd;
+-    @gcc_cmd = grep ! /^-w/, @gcc_cmd;
++    @preprocess_c_cmd = grep ! /^[-\/]c$/, @preprocess_c_cmd;
++    @preprocess_c_cmd = grep ! /^[-\/]m/, @preprocess_c_cmd;
++
++    @preprocess_c_cmd = grep ! /^[-\/]G/, @preprocess_c_cmd;
++    @preprocess_c_cmd = grep ! /^[-\/]W/, @preprocess_c_cmd;
++    @preprocess_c_cmd = grep ! /^[-\/]Z/, @preprocess_c_cmd;
++    @preprocess_c_cmd = grep ! /^[-\/]fp/, @preprocess_c_cmd;
++    @preprocess_c_cmd = grep ! /^[-\/]EHsc$/, @preprocess_c_cmd;
++    @preprocess_c_cmd = grep ! /^[-\/]O/, @preprocess_c_cmd;
++    @preprocess_c_cmd = grep ! /^[-\/]oldit/, @preprocess_c_cmd;
++    @preprocess_c_cmd = grep ! /^[-\/]FS/, @preprocess_c_cmd;
++    @preprocess_c_cmd = grep ! /^[-\/]w/, @preprocess_c_cmd;
++    @preprocess_c_cmd = grep ! /^[-\/]M/, @preprocess_c_cmd;
++    @preprocess_c_cmd = grep ! /^[-\/]FD/, @preprocess_c_cmd;
++
++    @gcc_cmd = grep ! /^[-\/]G/, @gcc_cmd;
++    @gcc_cmd = grep ! /^[-\/]W/, @gcc_cmd;
++    @gcc_cmd = grep ! /^[-\/]Z/, @gcc_cmd;
++    @gcc_cmd = grep ! /^[-\/]fp/, @gcc_cmd;
++    @gcc_cmd = grep ! /^[-\/]EHsc$/, @gcc_cmd;
++    @gcc_cmd = grep ! /^[-\/]O/, @gcc_cmd;
++    @gcc_cmd = grep ! /^[-\/]FS/, @gcc_cmd;
++    @gcc_cmd = grep ! /^[-\/]w/, @gcc_cmd;
++    @gcc_cmd = grep ! /^[-\/]Fd/, @gcc_cmd;
+ 
+     my @outfiles = grep /\.(o|obj)$/, @gcc_cmd;
+     $tempfile = $outfiles[0].".asm";
++    $tempfile =~ s/^[-\/]Fo//;
+ 
+     # Remove most parameters from gcc_cmd, which actually is the armasm command,
+     # which doesn't support any of the common compiler/preprocessor options.
+-    @gcc_cmd = grep ! /^-D/, @gcc_cmd;
+-    @gcc_cmd = grep ! /^-U/, @gcc_cmd;
+-    @gcc_cmd = grep ! /^-m/, @gcc_cmd;
+-    @gcc_cmd = grep ! /^-M/, @gcc_cmd;
+-    @gcc_cmd = grep ! /^-c$/, @gcc_cmd;
+-    @gcc_cmd = grep ! /^-I/, @gcc_cmd;
++    @gcc_cmd = grep ! /^[-\/]D/, @gcc_cmd;
++    @gcc_cmd = grep ! /^[-\/]U/, @gcc_cmd;
++    @gcc_cmd = grep ! /^[-\/]m/, @gcc_cmd;
++    @gcc_cmd = grep ! /^[-\/]M/, @gcc_cmd;
++    @gcc_cmd = grep ! /^[-\/]c$/, @gcc_cmd;
++    @gcc_cmd = grep ! /^[-\/]I/, @gcc_cmd;
++    @gcc_cmd = grep ! /^[-\/]showIncludes/, @gcc_cmd;
+     @gcc_cmd = map { /\.S$/ ? $tempfile : $_ } @gcc_cmd;
+ }
+ 
+-- 
+2.17.1
+

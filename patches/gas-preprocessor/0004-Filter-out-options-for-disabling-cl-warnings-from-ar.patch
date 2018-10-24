@@ -1,0 +1,24 @@
+From bbd6f8a567c4e091561fcab78b97734c800add6b Mon Sep 17 00:00:00 2001
+From: Martin Storsjo <martin@martin.st>
+Date: Sat, 10 Nov 2018 22:39:59 +0200
+Subject: [PATCH 4/8] Filter out options for disabling cl warnings from armasm
+
+---
+ gas-preprocessor.pl | 1 +
+ 1 file changed, 1 insertion(+)
+
+diff --git a/gas-preprocessor.pl b/gas-preprocessor.pl
+index da22968..a375848 100755
+--- a/gas-preprocessor.pl
++++ b/gas-preprocessor.pl
+@@ -194,6 +194,7 @@ if ($as_type ne "armasm") {
+ 
+     @gcc_cmd = grep ! /^[-\/]G/, @gcc_cmd;
+     @gcc_cmd = grep ! /^[-\/]W/, @gcc_cmd;
++    @gcc_cmd = grep ! /^[-\/]wd/, @gcc_cmd;
+     @gcc_cmd = grep ! /^[-\/]Z/, @gcc_cmd;
+     @gcc_cmd = grep ! /^[-\/]fp/, @gcc_cmd;
+     @gcc_cmd = grep ! /^[-\/]EHsc$/, @gcc_cmd;
+-- 
+2.17.1
+

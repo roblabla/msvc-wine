@@ -1,0 +1,54 @@
+From b7dbea9706530b2d85235b7a83a2de847d94ad92 Mon Sep 17 00:00:00 2001
+From: Martin Storsjo <martin@martin.st>
+Date: Mon, 22 Oct 2018 15:49:29 +0300
+Subject: [PATCH 1/8] Handle line continuations within gas-preprocessor
+
+If preprocessing with cl.exe, the preprocessor doesn't take care of
+concatenating continued lines.
+---
+ gas-preprocessor.pl | 19 ++++++++++++++++---
+ 1 file changed, 16 insertions(+), 3 deletions(-)
+
+diff --git a/gas-preprocessor.pl b/gas-preprocessor.pl
+index 126ee50..e9baeba 100755
+--- a/gas-preprocessor.pl
++++ b/gas-preprocessor.pl
+@@ -295,12 +295,11 @@ while (<INPUT>) {
+     s/\r$//;
+ 
+     foreach my $subline (split(";", $_)) {
+-        # Add newlines at the end of lines that don't already have one
+         chomp $subline;
+-        $subline .= "\n";
+-        parse_line($subline);
++        parse_line_continued($subline);
+     }
+ }
++parse_line_continued("");
+ 
+ sub eval_expr {
+     my $expr = $_[0];
+@@ -383,6 +382,20 @@ sub parse_if_line {
+     return 0;
+ }
+ 
++my $last_line = "";
++sub parse_line_continued {
++    my $line = $_[0];
++    $last_line .= $line;
++    if ($last_line =~ /\\$/) {
++        $last_line =~ s/\\$//;
++    } else {
++        # Add newlines at the end of lines after concatenation.
++        $last_line .= "\n";
++        parse_line($last_line);
++        $last_line = "";
++    }
++}
++
+ sub parse_line {
+     my $line = $_[0];
+ 
+-- 
+2.17.1
+
