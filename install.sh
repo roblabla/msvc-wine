@@ -23,9 +23,9 @@ DEST=$(pwd)
 if [ -n "$VC_ZIP" ]; then
     unzip $VC_ZIP
 fi
-mv VC vc
-mv vc/Tools vc/tools
-mv vc/tools/MSVC vc/tools/msvc
+test -e "VC" && mv VC vc
+test -e "vc/Tools" && mv vc/Tools vc/tools
+test -e "vc/tools/MSVC" && mv vc/tools/MSVC vc/tools/msvc
 if [ -d kits/10 ]; then
     cd kits/10
 else
@@ -34,8 +34,8 @@ else
     unzip $SDK_ZIP
     cd 10
 fi
-mv Lib lib
-mv Include include
+test -e "Lib" && mv Lib lib
+test -e "Include" && mv Include include
 cd ../..
 SDKVER=$(basename $(echo kits/10/include/* | awk '{print $NF}'))
 $ORIG/lowercase kits/10/include/$SDKVER/um
