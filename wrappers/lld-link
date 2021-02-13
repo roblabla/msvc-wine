@@ -1,8 +1,6 @@
-#!/bin/bash
+#!/usr/bin/env bash
 . $(dirname $0)/msvcenv.sh
 
-export INCLUDE="$MSVCDIR_UNIX/include;$SDKINCLUDE_UNIX/shared;$SDKINCLUDE_UNIX/ucrt;$SDKINCLUDE_UNIX/um;$SDKINCLUDE_UNIX/winrt"
-export LIB="$MSVCDIR_UNIX/lib/$ARCH;$SDKLIB_UNIX/ucrt/$ARCH;$SDKLIB_UNIX/um/$ARCH"
-export LIBPATH="$LIB"
+LLD_PATH=$(command -v rust-lld || echo lld)
 
-exec -a lld-link rust-lld "$@"
+exec -a lld-link $LLD_PATH "$@"

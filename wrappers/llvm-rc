@@ -1,0 +1,7 @@
+#!/usr/bin/env bash
+. $(dirname $0)/msvcenv.sh
+
+# Get path
+LLVM_RC=$(which -a llvm-rc | grep -v $0 | head -n1)
+
+exec $LLVM_RC "$@"
