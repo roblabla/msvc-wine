@@ -53,6 +53,8 @@ cat $ORIG/wrappers/msvcenv.sh | sed 's/MSVCVER=.*/MSVCVER='$MSVCVER/ | sed 's/SD
 for arch in x86 x64 arm arm64; do
     mkdir -p bin/$arch
     cp $ORIG/wrappers/* bin/$arch
+    # If cache lost the +w bit, restore it.
+    chmod +w bin/$arch/msvcenv.sh
     cat msvcenv.sh | sed 's/ARCH=.*/ARCH='$arch/ > bin/$arch/msvcenv.sh
 done
 rm msvcenv.sh
