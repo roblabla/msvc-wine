@@ -38,12 +38,54 @@ test -e "Lib" && mv Lib lib
 test -e "Include" && mv Include include
 cd ../..
 SDKVER=$(basename $(echo kits/10/include/* | awk '{print $NF}'))
-$ORIG/lowercase kits/10/include/$SDKVER/um
-$ORIG/lowercase kits/10/include/$SDKVER/shared
-$ORIG/fixinclude kits/10/include/$SDKVER/um
-$ORIG/fixinclude kits/10/include/$SDKVER/shared
+
+# Fix casing of includes and libs.
+# For includes, the easiest way is to generate a vfsoverlay mapping file for
+# clang to use.
+# For libs, there's no easy solution... We'll just symlink lower.lib and UPPER.lib
+# and hope that it's enough. Eventually, the ideal solution would be for LLD to
+# gain the ability to use a vfsoverlay as well.
+
+# TODO: Includes
+#$ORIG/lowercase kits/10/include/$SDKVER/um
+#$ORIG/lowercase kits/10/include/$SDKVER/shared
+#$ORIG/fixinclude kits/10/include/$SDKVER/um
+#$ORIG/fixinclude kits/10/include/$SDKVER/shared
+
+# Libs
+fix_libs () {
+    path="$1"
+    for f in $path/*; do
+        if [ -h $f ]; then
+            continue
+        elif [ -d $f ]; then
+            fix_libs $f
+        elif [ -f $f ]; then
+            dirname=$(dirname "$f")
+            basename=$(basename "$f")
+            filename="${basename%.*}"
+            extension="${basename##*.}"
+
+            filename_l=$(echo "$filename" | tr '[:upper:]' '[:lower:]')
+            filename_u=$(echo "$filename" | tr '[:lower:]' '[:upper:]')
+
+            extension_l=$(echo "$extension" | tr '[:upper:]' '[:lower:]')
+
+            basename1=$filename_l.$extension_l
+            basename2=$filename_u.$extension_l
+
+            if [ $basename != $basename1 ]; then
+                ln -s $dirname/$basename $dirname/$basename1
+            fi
+            if [ $basename != $basename2 ]; then
+                ln -s $dirname/$basename $dirname/$basename2
+            fi
+        fi
+    done
+}
+
 for arch in x86 x64 arm arm64; do
-    $ORIG/lowercase kits/10/lib/$SDKVER/um/$arch
+    fix_libs "kits/10/lib/$SDKVER/um/$arch"
 done
 
 SDKVER=$(basename $(echo kits/10/include/* | awk '{print $NF}'))
