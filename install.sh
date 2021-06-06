@@ -38,6 +38,7 @@ test -e "Lib" && mv Lib lib
 test -e "Include" && mv Include include
 cd ../..
 SDKVER=$(basename $(echo kits/10/include/* | awk '{print $NF}'))
+MSVCVER=$(basename $(echo vc/tools/msvc/* | awk '{print $1}'))
 
 # Fix casing of includes and libs.
 # For includes, the easiest way is to generate a vfsoverlay mapping file for
@@ -86,10 +87,9 @@ fix_libs () {
 
 for arch in x86 x64 arm arm64; do
     fix_libs "kits/10/lib/$SDKVER/um/$arch"
+    fix_libs "vc/tools/msvc/$MSVCVER/lib/$arch"
 done
 
-SDKVER=$(basename $(echo kits/10/include/* | awk '{print $NF}'))
-MSVCVER=$(basename $(echo vc/tools/msvc/* | awk '{print $1}'))
 cat $ORIG/wrappers/msvcenv.sh | sed 's/MSVCVER=.*/MSVCVER='$MSVCVER/ | sed 's/SDKVER=.*/SDKVER='$SDKVER/ | sed 's,BASE=.*,BASE='$DEST, > msvcenv.sh
 for arch in x86 x64 arm arm64; do
     mkdir -p bin/$arch
