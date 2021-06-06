@@ -75,10 +75,10 @@ fix_libs () {
             basename2=$filename_u.$extension_l
 
             if [ $basename != $basename1 ]; then
-                ln -s $dirname/$basename $dirname/$basename1
+                ln -s $basename $dirname/$basename1
             fi
             if [ $basename != $basename2 ]; then
-                ln -s $dirname/$basename $dirname/$basename2
+                ln -s $basename $dirname/$basename2
             fi
         fi
     done
