@@ -47,12 +47,6 @@ MSVCVER=$(basename $(echo vc/tools/msvc/* | awk '{print $1}'))
 # and hope that it's enough. Eventually, the ideal solution would be for LLD to
 # gain the ability to use a vfsoverlay as well.
 
-# TODO: Includes
-#$ORIG/lowercase kits/10/include/$SDKVER/um
-#$ORIG/lowercase kits/10/include/$SDKVER/shared
-#$ORIG/fixinclude kits/10/include/$SDKVER/um
-#$ORIG/fixinclude kits/10/include/$SDKVER/shared
-
 # Libs
 fix_libs () {
     path="$1"
@@ -89,6 +83,38 @@ for arch in x86 x64 arm arm64; do
     fix_libs "kits/10/lib/$SDKVER/um/$arch"
     fix_libs "vc/tools/msvc/$MSVCVER/lib/$arch"
 done
+
+# Generates VFS overlay for clang case insensitivity.
+gen_winsdk_vfs_overlay(){
+    local VFS="vfs.yaml"
+    cat >"$VFS"<<EOF
+version: 0
+case-sensitive: false
+roots:
+EOF
+
+    # skip cppwinrt
+    local HDIRS=`find $PWD/kits/10/include/$SDKVER/{shared,ucrt,um,winrt} -type d`
+    for d in $HDIRS; do
+        local hs=`find "$d" -maxdepth 1 -type f -iname "*.h"`
+        [ -n "$hs" ] || continue
+        cat >> "$VFS" <<EOF
+  - name: $d
+    type: directory
+    contents:
+EOF
+        for h in $hs; do
+            cat >> "$VFS" <<EOF
+      - name: ${h##*/}
+        type: file
+        external-contents: "$h"
+EOF
+        done
+    done
+}
+
+gen_winsdk_vfs_overlay
+
 
 cat $ORIG/wrappers/msvcenv.sh | sed 's/MSVCVER=.*/MSVCVER='$MSVCVER/ | sed 's/SDKVER=.*/SDKVER='$SDKVER/ | sed 's,BASE=.*,BASE='$DEST, > msvcenv.sh
 for arch in x86 x64 arm arm64; do

@@ -9,4 +9,4 @@ CLANG_PATH=clang
 # the /imsvc flag.
 # When LLVM 13 goes out, we should switch to passing winsdkdir and vctoolsdir
 # flags, and let LLVM find the correct include paths to set from there.
-exec -a clang-cl $CLANG_PATH /imsvc "$MSVCDIR/include" /imsvc "$SDKINCLUDE/shared" /imsvc "$SDKINCLUDE/ucrt" /imsvc "$SDKINCLUDE/um" /imsvc "$SDKINCLUDE/winrt" "$@"
+exec -a clang-cl $CLANG_PATH -Xclang -ivfsoverlay -Xclang "$BASE/vfs.yaml" /imsvc "$MSVCDIR/include" /imsvc "$SDKINCLUDE/shared" /imsvc "$SDKINCLUDE/ucrt" /imsvc "$SDKINCLUDE/um" /imsvc "$SDKINCLUDE/winrt" "$@"
