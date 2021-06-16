@@ -2,7 +2,7 @@
 . $(dirname $0)/msvcenv.sh
 
 CLANG_PATH=clang
-EXTRA_ARGS=
+PRE_EXTRA_ARGS=
 
 # TODO: Switch to winsdkdir and vctoolsdir flags.
 # For some reason, export INCLUDE in msvcenv doesn't work - the include path
@@ -10,4 +10,4 @@ EXTRA_ARGS=
 # the /imsvc flag.
 # When LLVM 13 goes out, we should switch to passing winsdkdir and vctoolsdir
 # flags, and let LLVM find the correct include paths to set from there.
-exec -a clang-cl $CLANG_PATH -Xclang -ivfsoverlay -Xclang "$BASE/vfs.yaml" /imsvc "$MSVCDIR/include" /imsvc "$SDKINCLUDE/shared" /imsvc "$SDKINCLUDE/ucrt" /imsvc "$SDKINCLUDE/um" /imsvc "$SDKINCLUDE/winrt" $EXTRA_ARGS "$@"
+exec -a clang-cl $CLANG_PATH -Xclang -ivfsoverlay -Xclang "$BASE/vfs.yaml" $PRE_EXTRA_ARGS /imsvc "$MSVCDIR/include" /imsvc "$SDKINCLUDE/shared" /imsvc "$SDKINCLUDE/ucrt" /imsvc "$SDKINCLUDE/um" /imsvc "$SDKINCLUDE/winrt" "$@"
