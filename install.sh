@@ -41,50 +41,10 @@ SDKVER=$(basename $(echo kits/10/include/* | awk '{print $NF}'))
 MSVCVER=$(basename $(echo vc/tools/msvc/* | awk '{print $1}'))
 
 # Fix casing of includes and libs.
-# For includes, the easiest way is to generate a vfsoverlay mapping file for
-# clang to use.
-# For libs, there's no easy solution... We'll just symlink lower.lib and UPPER.lib
-# and hope that it's enough. Eventually, the ideal solution would be for LLD to
-# gain the ability to use a vfsoverlay as well.
+# Generates a vfsoverlay mapping file for clang and lld to use.
+# Note that this requires a custom build of lld for now.
 
-# Libs
-fix_libs () {
-    path="$1"
-    for f in $path/*; do
-        if [ -h $f ]; then
-            continue
-        elif [ -d $f ]; then
-            fix_libs $f
-        elif [ -f $f ]; then
-            dirname=$(dirname "$f")
-            basename=$(basename "$f")
-            filename="${basename%.*}"
-            extension="${basename##*.}"
-
-            filename_l=$(echo "$filename" | tr '[:upper:]' '[:lower:]')
-            filename_u=$(echo "$filename" | tr '[:lower:]' '[:upper:]')
-
-            extension_l=$(echo "$extension" | tr '[:upper:]' '[:lower:]')
-
-            basename1=$filename_l.$extension_l
-            basename2=$filename_u.$extension_l
-
-            if [ $basename != $basename1 ]; then
-                ln -s $basename $dirname/$basename1
-            fi
-            if [ $basename != $basename2 ]; then
-                ln -s $basename $dirname/$basename2
-            fi
-        fi
-    done
-}
-
-for arch in x86 x64 arm arm64; do
-    fix_libs "kits/10/lib/$SDKVER/um/$arch"
-    fix_libs "vc/tools/msvc/$MSVCVER/lib/$arch"
-done
-
-# Generates VFS overlay for clang case insensitivity.
+# Generates VFS overlay for case insensitivity.
 gen_winsdk_vfs_overlay(){
     local VFS="vfs.yaml"
     cat >"$VFS"<<EOF
@@ -94,9 +54,9 @@ roots:
 EOF
 
     # skip cppwinrt
-    local HDIRS=`find $PWD/kits/10/include/$SDKVER/{shared,ucrt,um,winrt} -type d`
+    local HDIRS=`find $PWD/kits/10/lib/$SDKVER/{ucrt,um} $PWD/kits/10/include/$SDKVER/{shared,ucrt,um,winrt} -type d`
     for d in $HDIRS; do
-        local hs=`find "$d" -maxdepth 1 -type f -iname "*.h"`
+        local hs=`find "$d" -maxdepth 1 -type f -iname "*.h" -iname "*.lib"`
         [ -n "$hs" ] || continue
         cat >> "$VFS" <<EOF
   - name: $d

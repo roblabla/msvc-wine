@@ -3,4 +3,4 @@
 
 LLD_PATH=$(command -v rust-lld || echo lld)
 
-exec -a lld-link $LLD_PATH "$@"
+exec -a lld-link $LLD_PATH /vfsoverlay:"$BASE/vfs.yaml" "$@"
