@@ -26,18 +26,19 @@ fi
 test -e "VC" && mv VC vc
 test -e "vc/Tools" && mv vc/Tools vc/tools
 test -e "vc/tools/MSVC" && mv vc/tools/MSVC vc/tools/msvc
-if [ -d kits/10 ]; then
-    cd kits/10
+if [ -d kits ] && [ "$(ls -A kits)" ]; then
+    KITVER=$(ls -A kits)
 else
-    mkdir kits
+    mkdir -p kits
     cd kits
     unzip $SDK_ZIP
-    cd 10
+    KITVER=10
 fi
+cd "kits/$KITVER"
 test -e "Lib" && mv Lib lib
 test -e "Include" && mv Include include
 cd ../..
-SDKVER=$(basename $(echo kits/10/include/* | awk '{print $NF}'))
+SDKVER=$(basename $(echo kits/$KITVER/include/* | awk '{print $NF}'))
 MSVCVER=$(basename $(echo vc/tools/msvc/* | awk '{print $1}'))
 
 # Fix casing of includes and libs.
@@ -80,7 +81,7 @@ fix_libs () {
 }
 
 for arch in x86 x64 arm arm64; do
-    fix_libs "kits/10/lib/$SDKVER/um/$arch"
+    fix_libs "kits/$KITVER/lib/$SDKVER/um/$arch"
     fix_libs "vc/tools/msvc/$MSVCVER/lib/$arch"
 done
 
@@ -94,7 +95,7 @@ roots:
 EOF
 
     # skip cppwinrt
-    local HDIRS=`find $PWD/kits/10/include/$SDKVER/{shared,ucrt,um,winrt} -type d`
+    local HDIRS=`find $PWD/kits/$KITVER/include/$SDKVER/{shared,ucrt,um,winrt} -type d`
     for d in $HDIRS; do
         local hs=`find "$d" -maxdepth 1 -type f -iname "*.h"`
         [ -n "$hs" ] || continue
@@ -116,7 +117,7 @@ EOF
 gen_winsdk_vfs_overlay
 
 
-cat $ORIG/wrappers/msvcenv.sh | sed 's/MSVCVER=.*/MSVCVER='$MSVCVER/ | sed 's/SDKVER=.*/SDKVER='$SDKVER/ | sed 's,BASE=.*,BASE='$DEST, > msvcenv.sh
+cat $ORIG/wrappers/msvcenv.sh | sed 's,SDK=.*,SDK=kits/'$KITVER',' | sed 's/MSVCVER=.*/MSVCVER='$MSVCVER/ | sed 's/SDKVER=.*/SDKVER='$SDKVER/ | sed 's,BASE=.*,BASE='$DEST, > msvcenv.sh
 for arch in x86 x64 arm arm64; do
     mkdir -p bin/$arch
     cp $ORIG/wrappers/* bin/$arch
