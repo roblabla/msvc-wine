@@ -23,9 +23,9 @@ DEST=$(pwd)
 if [ -n "$VC_ZIP" ]; then
     unzip $VC_ZIP
 fi
-test -e "VC" && mv VC vc
-test -e "vc/Tools" && mv vc/Tools vc/tools
-test -e "vc/tools/MSVC" && mv vc/tools/MSVC vc/tools/msvc
+test -e "VC" && test ! -e "vc" && mv VC vc
+test -e "vc/Tools" && test ! -e "vc/tools" && mv vc/Tools vc/tools
+test -e "vc/tools/MSVC" && test ! -e "vc/tools/msvc" && mv vc/tools/MSVC vc/tools/msvc
 if [ -d kits/10 ]; then
     cd kits/10
 else
@@ -34,8 +34,8 @@ else
     unzip $SDK_ZIP
     cd 10
 fi
-test -e "Lib" && mv Lib lib
-test -e "Include" && mv Include include
+test -e "Lib" && test ! -e "lib" && mv Lib lib
+test -e "Include" && test ! -e "include" && mv Include include
 cd ../..
 SDKVER=$(basename $(echo kits/10/include/* | awk '{print $NF}'))
 MSVCVER=$(basename $(echo vc/tools/msvc/* | awk '{print $1}'))
@@ -69,10 +69,10 @@ fix_libs () {
             basename1=$filename_l.$extension_l
             basename2=$filename_u.$extension_l
 
-            if [ $basename != $basename1 ]; then
+            if [ $basename != $basename1 -a ! $dirname/$basename -ef $dirname/$basename1 ]; then
                 ln -s $basename $dirname/$basename1
             fi
-            if [ $basename != $basename2 ]; then
+            if [ $basename != $basename2 -a ! $dirname/$basename -ef $dirname/$basename2 ]; then
                 ln -s $basename $dirname/$basename2
             fi
         fi
