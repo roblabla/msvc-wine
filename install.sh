@@ -117,11 +117,14 @@ gen_winsdk_vfs_overlay
 
 
 cat $ORIG/wrappers/msvcenv.sh | sed 's/MSVCVER=.*/MSVCVER='$MSVCVER/ | sed 's/SDKVER=.*/SDKVER='$SDKVER/ | sed 's,BASE=.*,BASE='$DEST, > msvcenv.sh
-for arch in x86 x64 arm arm64; do
+
+for archtargetpair in "x86 i686-pc-windows-msvc" "x64 x86_64-pc-windows-msvc" "arm armv7-pc-windows-msvc" "arm64 aarch64-pc-windows-msvc"; do
+    arch="${archtargetpair% *}"
+    target="${archtargetpair#* }"
     mkdir -p bin/$arch
     cp $ORIG/wrappers/* bin/$arch
     # If cache lost the +w bit, restore it.
     chmod +w bin/$arch/msvcenv.sh
-    cat msvcenv.sh | sed 's/ARCH=.*/ARCH='$arch/ > bin/$arch/msvcenv.sh
+    cat msvcenv.sh | sed 's/ARCH=.*/ARCH='$arch/ | sed 's/CLANG_TARGET=.*/CLANG_TARGET='$target'/' > bin/$arch/msvcenv.sh
 done
 rm msvcenv.sh
