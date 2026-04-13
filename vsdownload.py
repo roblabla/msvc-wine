@@ -492,12 +492,10 @@ def printReverseDepends(packages, target, deptype, indent, args):
 
 def getPackageKey(p):
     packagekey = p["id"]
-    if "version" in p:
-        packagekey = packagekey + "-" + p["version"]
-    for k in ["chip", "machineArch", "productArch"]:
+    for k in ["version", "chip", "language", "productArch", "machineArch"]:
         v = p.get(k)
         if v is not None:
-           packagekey = packagekey + "-" + k + "." + v
+           packagekey = packagekey + "," + k.lower() + "=" + v
     return packagekey
 
 def aggregateDepends(packages, included, target, constraints, args):
@@ -588,13 +586,13 @@ def sha256File(file):
                 sha256Hash.update(byteBlock)
         return sha256Hash.hexdigest()
 
-def getPayloadName(payload):
-    name = payload["fileName"]
-    if "\\" in name:
-        name = name.split("\\")[-1]
-    if "/" in name:
-        name = name.split("/")[-1]
-    return name
+def getPayloadName(payload, package):
+    if package['type'] == 'Vsix' and len(package['payloads']) == 1:
+        # For some reason, vsix are _always_ saved as payload.vsix in the
+        # layout.
+        return 'payload.vsix'
+    else:
+        return payload["fileName"].replace("\\", "/")
 
 def downloadPackages(selected, cache, allowHashMismatch = False):
     pool = multiprocessing.Pool(5)
@@ -604,10 +602,10 @@ def downloadPackages(selected, cache, allowHashMismatch = False):
         if not "payloads" in p:
             continue
         dir = os.path.join(cache, getPackageKey(p))
-        makedirs(dir)
         for payload in p["payloads"]:
-            name = getPayloadName(payload)
+            name = getPayloadName(payload, p)
             destname = os.path.join(dir, name)
+            makedirs(os.path.dirname(destname))
             fileid = os.path.join(getPackageKey(p), name)
             args = (payload, destname, fileid, allowHashMismatch)
             tasks.append(pool.apply_async(_downloadPayload, args))
