@@ -92,7 +92,7 @@ def getArgsParser():
 
 def setPackageSelectionMSVC16(args, packages, userversion, sdk, toolversion, defaultPackages):
     ext = ".Tools" if toolversion == "Preview" else ""
-    if findPackage(packages, "Microsoft.VisualStudio.Component.VC." + toolversion + ext + ".x86.x64", warn=False):
+    if findPackages(packages, "Microsoft.VisualStudio.Component.VC." + toolversion + ext + ".x86.x64", warn=False):
         if "x86" in args.architecture or "x64" in args.architecture:
             args.package.append("Microsoft.VisualStudio.Component.VC." + toolversion + ext + ".x86.x64")
             args.package.append("Microsoft.VC." + toolversion + ".ASAN.X86")
@@ -114,7 +114,7 @@ def setPackageSelectionMSVC16(args, packages, userversion, sdk, toolversion, def
         args.package.extend(defaultPackages)
 
 def setPackageSelectionMSVC15(args, packages, userversion, sdk, toolversion, defaultPackages):
-    if findPackage(packages, "Microsoft.VisualStudio.Component.VC.Tools." + toolversion, warn=False):
+    if findPackages(packages, "Microsoft.VisualStudio.Component.VC.Tools." + toolversion, warn=False):
         args.package.extend(["Win10SDK_" + sdk, "Microsoft.VisualStudio.Component.VC.Tools." + toolversion])
     else:
         # Options for toolchains for specific versions. The latest version in
@@ -369,25 +369,21 @@ def listPackageType(packages, type):
     for id in sorted(ids):
         print(id)
 
-def findPackage(packages, id, constraints={}, warn=True):
+def findPackages(packages, id, constraints={}, warn=True):
     origid = id
     id = id.lower()
-    candidates = None
     if not id in packages:
         if warn:
             print("WARNING: %s not found" % (origid))
-        return None
-    candidates = packages[id]
-    for a in candidates:
-        matched = True
+        return []
+    def matchesConstraints(constraints, a):
         for k, v in constraints.items():
             if k in ["chip", "machineArch"]:
                 matched = a.get(k, "").lower() == v.lower()
                 if not matched:
-                    break
-        if matched:
-            return a
-    return candidates[0]
+                    return False
+        return True
+    return [a for a in packages[id] if matchesConstraints(constraints, a)]
 
 def matchPackageHostArch(p, host):
     if host is None:
@@ -447,25 +443,25 @@ def printDepends(packages, target, constraints, indent, args):
         ignore = True
     if deptype == "Recommended" and args.skip_recommended:
         ignore = True
-    if not ignore:
-        p = findPackage(packages, target, constraints, warn=False)
-        if p == None:
-            ignorestr = " (NotFound)"
-            ignore = True
-        elif args.only_host and not matchPackageHostArch(p, args.host_arch):
-            ignorestr = " (HostArchMismatch)"
-            ignore = True
-        elif not matchPackageTargetArch(p, args.architecture):
-            ignorestr = " (TargetArchMismatch)"
-            ignore = True
-    print(indent + target + chipstr + deptypestr + ignorestr)
-    if ignore:
-        return
-    for target, constraints in p.get("dependencies", {}).items():
-        if not isinstance(constraints, dict):
-            constraints = { "version": constraints }
-        target = constraints.get("id", target)
-        printDepends(packages, target, constraints, indent + "  ", args)
+    for p in findPackages(packages, target, constraints, warn=False):
+        if not ignore:
+            if p == None:
+                ignorestr = " (NotFound)"
+                ignore = True
+            elif args.only_host and not matchPackageHostArch(p, args.host_arch):
+                ignorestr = " (HostArchMismatch)"
+                ignore = True
+            elif not matchPackageTargetArch(p, args.architecture):
+                ignorestr = " (TargetArchMismatch)"
+                ignore = True
+        print(indent + target + chipstr + deptypestr + ignorestr)
+        if ignore:
+            continue
+        for target, constraints in p.get("dependencies", {}).items():
+            if not isinstance(constraints, dict):
+                constraints = { "version": constraints }
+            target = constraints.get("id", target)
+            printDepends(packages, target, constraints, indent + "  ", args)
 
 def printReverseDepends(packages, target, deptype, indent, args):
     deptypestr = ""
@@ -501,28 +497,32 @@ def getPackageKey(p):
 def aggregateDepends(packages, included, target, constraints, args):
     if target.lower() in args.ignore:
         return []
-    p = findPackage(packages, target, constraints)
-    if p == None:
+    candidates = findPackages(packages, target, constraints)
+    if len(candidates) == 0:
         return []
-    if args.only_host and not matchPackageHostArch(p, args.host_arch):
+    if args.only_host:
+        candidates = [p for p in candidates if matchPackageHostArch(p, args.host_arch)]
+    candidates = [p for p in candidates if matchPackageTargetArch(p, args.architecture)]
+    if len(candidates) == 0:
         return []
-    if not matchPackageTargetArch(p, args.architecture):
-        return []
-    packagekey = getPackageKey(p)
-    if packagekey in included:
-        return []
-    ret = [p]
-    included[packagekey] = True
-    for target, constraints in p.get("dependencies", {}).items():
-        if not isinstance(constraints, dict):
-            constraints = { "version": constraints }
-        target = constraints.get("id", target)
-        deptype = constraints.get("type")
-        if deptype == "Optional" and not args.include_optional:
+    ret = []
+    for p in candidates:
+        packagekey = getPackageKey(p)
+        if packagekey in included:
             continue
-        if deptype == "Recommended" and args.skip_recommended:
-            continue
-        ret.extend(aggregateDepends(packages, included, target, constraints, args))
+        ret.append(p)
+        included[packagekey] = True
+
+        for target, constraints in p.get("dependencies", {}).items():
+            if not isinstance(constraints, dict):
+                constraints = { "version": constraints }
+            target = constraints.get("id", target)
+            deptype = constraints.get("type")
+            if deptype == "Optional" and not args.include_optional:
+                continue
+            if deptype == "Recommended" and args.skip_recommended:
+                continue
+            ret.extend(aggregateDepends(packages, included, target, constraints, args))
     return ret
 
 def getSelectedPackages(packages, args):
@@ -872,7 +872,7 @@ if __name__ == "__main__":
         sys.exit(0)
 
     if not args.accept_license:
-        response = input("Do you accept the license at " + findPackage(packages, "Microsoft.VisualStudio.Product.BuildTools")["localizedResources"][0]["license"] + " (yes/no)? ")
+        response = input("Do you accept the license at " + findPackages(packages, "Microsoft.VisualStudio.Product.BuildTools")[0]["localizedResources"][0]["license"] + " (yes/no)? ")
         while response != "yes" and response != "no":
             response = input("Do you accept the license? Answer \"yes\" or \"no\": ")
         if response == "no":
