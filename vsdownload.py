@@ -280,20 +280,24 @@ def lowercaseIgnores(args):
             ignore.append(i.lower())
     args.ignore = ignore
 
-def getManifest(args):
-    if args.manifest == None:
+def getRawChannel(args):
+    if args.major < 18:
+        type = "release"
+    else:
+        type = "stable"
+    if args.preview:
         if args.major < 18:
-            type = "release"
+            type = "pre"
         else:
-            type = "stable"
-        if args.preview:
-            if args.major < 18:
-                type = "pre"
-            else:
-                type = "insiders"
-        url = "https://aka.ms/vs/%s/%s/channel" % (args.major, type)
-        print("Fetching %s" % (url))
-        manifest = json.loads(urllib.request.urlopen(url).read())
+            type = "insiders"
+    url = "https://aka.ms/vs/%s/%s/channel" % (args.major, type)
+    print("Fetching %s" % (url))
+    manifest = urllib.request.urlopen(url).read()
+    return manifest
+
+def getRawManifest(args):
+    if args.manifest == None:
+        manifest = json.loads(getRawChannel(args))
         print("Got toplevel manifest for %s" % (manifest["info"]["productDisplayVersion"]))
         for item in manifest["channelItems"]:
             if "type" in item and item["type"] == "Manifest":
@@ -305,7 +309,11 @@ def getManifest(args):
     if not args.manifest.startswith("http"):
         args.manifest = "file:" + args.manifest
 
-    manifestdata = urllib.request.urlopen(args.manifest).read()
+    return urllib.request.urlopen(args.manifest).read()
+
+
+def getManifest(args):
+    manifestdata = getRawManifest(args)
     manifest = json.loads(manifestdata)
     print("Loaded installer manifest for %s" % (manifest["info"]["productDisplayVersion"]))
 
