@@ -66,6 +66,7 @@ def getArgsParser():
     parser.add_argument("--preview", const=True, action="store_const", help="Download the preview version instead of the release version")
     parser.add_argument("--cache", metavar="dir", help="Directory to use as a persistent cache for downloaded files")
     parser.add_argument("--dest", metavar="dir", help="Directory to install into")
+    parser.add_argument("--language", metavar="lang", help="Target languages to include (defaults to en-US)", nargs="+")
     parser.add_argument("package", metavar="package", help="Package to install. If omitted, installs the default command line tools.", nargs="*")
     parser.add_argument("--ignore", metavar="component", help="Package to skip", action="append")
     parser.add_argument("--accept-license", const=True, action="store_const", help="Don't prompt for accepting the license")
@@ -128,6 +129,10 @@ def setPackageSelection(args, packages):
         args.architecture = ["host", "x86", "x64", "arm", "arm64"]
     if args.host_arch is not None and "host" in args.architecture:
         args.architecture.append(args.host_arch)
+    if not args.language:
+        args.language = ['en-us']
+    else:
+        args.language = [x.lower() for x in args.language]
 
     # If no packages are selected, install these versionless packages, which
     # gives the latest/recommended version for the current manifest.
@@ -378,7 +383,7 @@ def findPackages(packages, id, constraints={}, warn=True):
         return []
     def matchesConstraints(constraints, a):
         for k, v in constraints.items():
-            if k in ["chip", "machineArch"]:
+            if k in ["chip", "machineArch", "language"]:
                 matched = a.get(k, "").lower() == v.lower()
                 if not matched:
                     return False
@@ -424,9 +429,19 @@ def matchPackageTargetArch(p, archs):
 
     return True
 
+def matchPackageLanguage(p, language):
+    if language is ['all']:
+        return True
+
+    lang = p.get("language", "neutral").lower()
+    if lang == "neutral":
+        return True
+    else:
+        return lang in language
+
 def printDepends(packages, target, constraints, indent, args):
     chipstr = ""
-    for k in ["chip", "machineArch"]:
+    for k in ["chip", "machineArch", "language"]:
         v = constraints.get(k)
         if v is not None:
             chipstr = chipstr + " (" + k + "." + v + ")"
@@ -503,6 +518,8 @@ def aggregateDepends(packages, included, target, constraints, args):
     if args.only_host:
         candidates = [p for p in candidates if matchPackageHostArch(p, args.host_arch)]
     candidates = [p for p in candidates if matchPackageTargetArch(p, args.architecture)]
+    if args.language != ['all']:
+        candidates = [p for p in candidates if matchPackageLanguage(p, args.language)]
     if len(candidates) == 0:
         return []
     ret = []
